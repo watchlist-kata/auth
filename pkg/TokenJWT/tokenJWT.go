@@ -7,22 +7,34 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func GenerateToken(email string, secretKey string) (string, error) {
+type TokenJWT struct {
+	secretKey string
+	ttl       time.Duration
+}
+
+func NewTokenJWT(secretKey string, ttl time.Duration) *TokenJWT {
+	return &TokenJWT{secretKey: secretKey, ttl: ttl}
+}
+
+func (t *TokenJWT) GenerateToken(payload map[string]string) (string, error) {
 	claims := jwt.MapClaims{
-		"email": email,
-		"exp":   time.Now().Add(time.Minute * 15).Unix(),
+		"exp": time.Now().Add(t.ttl).Unix(),
+	}
+
+	for key, val := range payload {
+		claims[key] = val
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secretKey))
+	return token.SignedString([]byte(t.secretKey))
 }
 
-func ValidateJWT(tokenString, secretKey string) (bool, error) {
+func (t *TokenJWT) ValidateJWT(tokenString string) (bool, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-		return []byte(secretKey), nil
+		return []byte(t.secretKey), nil
 	})
 
 	if err != nil {
