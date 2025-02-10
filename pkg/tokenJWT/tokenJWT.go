@@ -1,10 +1,18 @@
-package TokenJWT
+package tokenJWT
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+)
+
+var (
+	ErrTokenExpired     = errors.New("token has expired")
+	ErrTokenInvalid     = errors.New("token is invalid")
+	ErrSignatureInvalid = errors.New("invalid signature")
 )
 
 type TokenJWT struct {
@@ -29,7 +37,7 @@ func (t *TokenJWT) GenerateToken(payload map[string]string) (string, error) {
 	return token.SignedString([]byte(t.secretKey))
 }
 
-func (t *TokenJWT) ValidateJWT(tokenString string) (bool, error) {
+func (t *TokenJWT) ValidateJWT(tokenString string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -38,18 +46,21 @@ func (t *TokenJWT) ValidateJWT(tokenString string) (bool, error) {
 	})
 
 	if err != nil {
-		return false, fmt.Errorf("error parsing token: %w", err)
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrTokenExpired
+		} else if errors.Is(err, jwt.ErrSignatureInvalid) { // Добавлено
+			return nil, ErrSignatureInvalid
+		}
+		return nil, fmt.Errorf("error parsing token: %w", err)
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		if exp, ok := claims["exp"].(float64); ok {
-			expirationTime := time.Unix(int64(exp), 0)
-			if time.Now().After(expirationTime) {
-				return false, fmt.Errorf("token has expired")
-			}
-		}
-		return true, nil
+		return claims, nil
 	}
 
-	return false, fmt.Errorf("token is invalid")
+	return nil, ErrTokenInvalid
+}
+
+func (t *TokenJWT) GenerateRefreshToken() string {
+	return uuid.New().String()
 }
