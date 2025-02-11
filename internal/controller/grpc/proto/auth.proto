@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package auth;
+
+
+option go_package = "github.com/watchlist-kata/protos/auth";
+
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  bool success = 1;
+  string accessToken = 2;
+  string refreshToken = 3;
+}
+
+message RefreshTokenRequest {
+  string refreshToken = 1;
+}
+
+message RefreshTokenResponse {
+  bool success = 1;
+  string accessToken = 2;
+}
+
+message ValidateJWTRequest {
+  string accessToken = 1;
+}
+
+message ValidateJWTResponse{
+  bool success = 1;
+}
+
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+  rpc ValidateJWT(ValidateJWTRequest) returns(ValidateJWTResponse);
+}
+
+
